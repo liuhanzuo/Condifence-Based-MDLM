@@ -1,0 +1,16 @@
+# 核心依赖（Python 3.11, 单卡 CUDA）
+# torch 需按 GPU 选择正确 CUDA 版本；Blackwell(5090) 用 cu128：
+#   pip install torch --index-url https://download.pytorch.org/whl/cu128
+torch>=2.10
+transformers>=4.44,<5
+accelerate
+safetensors
+sentencepiece
+peft
+scikit-learn
+matplotlib
+numpy
+huggingface_hub
+# 仅 PDF 导出用：
+markdown
+playwright
