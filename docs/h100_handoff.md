@@ -1,5 +1,19 @@
 # H100 迁移交接文档（给远程 Claude Code）
 
+> ⚠️⚠️ **2026-07 更新（Exp19 已在 H100 跑完，先读这个！）** ⚠️⚠️
+> 下文 P0 计划（训练 lmonly/decoupled + 跑 18_gsm8k_eval）**已全部执行，但暴露出比本文档预想更深的问题**，
+> 完整记录见 `docs/findings.md` 的 **Exp19**。摘要：
+> - ✅ **机制跨分布成立**：gsm8k 训练的 decoupled 在 `16_eval` 上 dep 中位数 0.648→0.464、独立子集 33%→38%。
+> - ❌ **下游生成被微调本身破坏**：任何学到任务的 LoRA 微调（lmonly/decoupled，全 LR 扫描无甜点）都让
+>   Dream 原生扩散生成退化成 "the the the"；base 未训练反而解 GSM8K（~25-37%）。**根因不是"格式不匹配"**（纯LM也崩），
+>   是扩散 LM 对窄分布微调的生成敏感性 + 解耦目标的 collapse 最小值。
+> - ❌ **18_gsm8k_eval 的 naive planner 对所有模型（含base）触发 eos 级联 → 全 0%；GPT-2 NLL 奖励 mode-collapse**。两个评估方法都不可信。
+> - 环境/数据/速度信息（下文 §1-§4）仍然有效；但 §5 的 P0/P1/P2 计划**已被 Exp19 取代**，
+>   新方向见 findings.md Exp19 的"下一步建议"（换训练目标避开 collapse 最小值、用 `diffusion_generate`+任务准确率重做评估）。
+> - **环境关键点**：H100 驱动 550 → 仅支持 CUDA ≤12.4 → 必须装 **torch 2.6.0+cu124**（cu126/cu128 不可用）。
+
+---
+
 > 你正在接手一个持续迭代的研究项目：**训练 masked diffusion LM 主动增加 token 间条件独立性，
 > 以支持更可靠的并行生成**。本机此前在单卡 RTX 5090 Laptop(24GB) 上完成了大量实验，现在迁移到
 > 一张 H100 上继续跑对下游任务（GSM8K）更有说服力的规模。请先完整读一遍本文档，再看

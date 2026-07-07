@@ -89,6 +89,10 @@ def main():
                           "gsm8k=GSM8K训练集chat格式(格式对齐评估,推荐)")
     ap.add_argument("--n_train_sents", type=int, default=2000,
                      help="corpus=wiki/gsm8k 时从语料池采样的样本数")
+    ap.add_argument("--keep_lo", type=float, default=0.15,
+                     help="keep_ratio 下界(保留的token比例)。默认0.15对应原行为。"
+                          "生成从全mask开始, 训练keep_range需覆盖到0才能让模型学会all-mask起点生成。")
+    ap.add_argument("--keep_hi", type=float, default=0.5, help="keep_ratio 上界")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     rng = np.random.default_rng(args.seed)
@@ -132,7 +136,7 @@ def main():
             resp_len = L - resp_start
             if resp_len < 3:
                 return None
-            kr = rng.uniform(0.15, 0.5)
+            kr = rng.uniform(args.keep_lo, args.keep_hi)
             nk = max(1, int(round(kr * resp_len)))
             sel = resp_start + rng.choice(resp_len, size=nk, replace=False)
             keep[torch.as_tensor(sel, device=gt.device)] = True
@@ -143,7 +147,7 @@ def main():
             if L < 8:
                 return None
             keep = torch.zeros(L, dtype=torch.bool, device=gt.device)
-            kr = rng.uniform(0.15, 0.5)
+            kr = rng.uniform(args.keep_lo, args.keep_hi)
             nk = max(1, int(round(kr * L)))
             keep[torch.as_tensor(rng.choice(L, size=nk, replace=False), device=gt.device)] = True
             return gt, keep
